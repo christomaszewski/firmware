@@ -1041,4 +1041,3 @@ char * JSONPassThrough::name() {
 
 void JSONPassThrough::loop(){
 }
-
