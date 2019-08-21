@@ -48,21 +48,21 @@ SerialState EBoard::getState()
 EBoard::~EBoard()
 {
 }
-bool EBoard::set(const char *param, const char *value)
+bool EBoard::set(const char* param, const char* value)
 {
   if (strcmp("cmd",param) == 0)
   {
     if (strcmp("arm",value) == 0)
     {
-      Serial.println("Arming Boat");
+      //Serial.println("Arming Boat");
       state_ = SerialState::ACTIVE;
-      Serial.println("STATE: ACTIVE");
+      Serial.println("{\"type\":\"state\",\"data\":\"active\"}");
     }
     else if (strcmp("disarm",value) == 0)
     {
-      Serial.println("Disarming Boat");
+      //Serial.println("Disarming Boat");
       state_ = SerialState::CONNECTED;
-      Serial.println("STATE: CONNECTED");
+      Serial.println("{\"type\":\"state\",\"data\":\"connected\"}");
     }
   }
   else if (strcmp("info",param) == 0)
@@ -187,80 +187,22 @@ void EBoard::loop()
 //  serial_state == SerialState::ACTIVE;
 // }
 
-void VaporPro::arm()
-{
-  disable();
-  delay(500);
-  enable();
-
-  velocity(1.0);
-  delay(5500);
-
-  velocity(-1.0);
-  delay(3500);
-
-  velocity(0.0);
-  delay(8500);
-}
-
-void HobbyKingBoat::arm()
-{
-  disable();
-  delay(1000);
-
-  velocity(1.0);
-  enable();
-  delay(3000);
-
-  velocity(0.0);
-  delay(3000);
-}
-
-void Seaking::arm()
-{
-  disable();
-  delay(500);
-
-  velocity(1.0);
-  enable();
-  delay(3000);
-
-  velocity(0.0);
-  delay(2000);
-}
-
-void Swordfish::arm()
-{
-  disable();
-  delay(500);
-
-  velocity(1.0);
-  enable();
-  delay(5000);
-
-  velocity(0.0);
-  delay(3000);
-}
-
-void Dynamite::arm()
-{
-  disable();
-  delay(500);
-
-  velocity(0.0);
-  enable();
-  delay(3000);
-}
-
-
 void AfroESC::arm()
 {
-  disable();
-  delay(1000);
-  velocity(0.0); //sends it 1500 for arming
-  delay(100);
+  desiredVelocity_ = 0.0;
   enable();
+  velocity(0.0); //sends it 1500 for arming
   delay(1000);
+  armed_ = true;
+}
+
+void AfroESC::disarm()
+{
+  armed_ = false;
+  desiredVelocity_ = 0.0;
+  velocity(0.0);
+  delay(100);
+  disable();
 }
 
 BatterySensor::BatterySensor(int id, int interval) 
@@ -286,16 +228,11 @@ void BatterySensor::loop()
     char output_str[DEFAULT_BUFFER_SIZE + 3];
     snprintf(output_str, DEFAULT_BUFFER_SIZE,
              "{"
-             "\"s%u\":{"
              "\"type\":\"%s\","
-             "\"data\":\"%.3f %f %d\""
-             "}"
+             "\"data\":\"%.3f\""
              "}",
-             id_,
              this->name(),
-             lastMeasurement_,
-             0.0,
-             0.0
+             lastMeasurement_
             );
     send(output_str);  
   }
@@ -307,11 +244,14 @@ IMU::IMU(int id, int interval)
   lastMeasurementTime_ = 0;
 
   if (!bno_.begin()){
-    Serial.println(F("Error: Could not initialize IMU"));
+    Serial.println('{\"type\":\"error\",\"data\":\"Failed to initialize imu\"}');
     return;
   } else {
     available_ = true;
   }
+
+  bno_.setAxisRemap(Adafruit_BNO055::REMAP_CONFIG_P6);
+  bno_.setAxisSign(Adafruit_BNO055::REMAP_SIGN_P6);
 
   bno_.setExtCrystalUse(true);
 
@@ -380,14 +320,13 @@ void IMU::loop()
     char output_str[DEFAULT_BUFFER_SIZE + 3];
     snprintf(output_str, DEFAULT_BUFFER_SIZE,
              "{"
-             "\"s%u\":{"
              "\"type\":\"%s\","
-             "\"data\":\"%.4f,%d,%d,%d,%d\""
-             "}"
+             "\"data\":\"%.4f,%.4f,%.4f,%d,%d,%d,%d\""
              "}",
-             id_,
              this->name(),
              event.orientation.x,
+             event.orientation.y,
+             event.orientation.z,
              sysCalib_,
              magCalib_,
              gyroCalib_,

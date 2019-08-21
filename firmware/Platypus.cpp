@@ -1,10 +1,5 @@
 #include "Platypus.h"
 
-
-#include <Adafruit_NeoPixel.h>
-// LED serial controller.
-Adafruit_NeoPixel pixels = Adafruit_NeoPixel(board::NUM_LEDS, board::LED, NEO_GRB + NEO_KHZ800);
-
 using namespace platypus;
 
 // Velocity decay/ramping constants
@@ -105,6 +100,16 @@ void platypus::init()
   //pixels.show();
 }
 
+bool Configurable::set(const char* param, const char* value)
+{
+  return false;
+}
+
+bool Configurable::set(const char* param, float value)
+{
+  return false;
+}
+
 Led::Led()
   : r_(0), g_(0), b_(0)
 {
@@ -120,12 +125,6 @@ void Led::set(int red, int green, int blue)
   r_ = red;
   g_ = green;
   b_ = blue;
-
-  /*
-    while (!pixels.canShow());
-    for (size_t pixel_idx = 0; pixel_idx < board::NUM_LEDS; ++pixel_idx)
-    pixels.setPixelColor(pixel_idx, r_, g_, b_);
-    pixels.show();*/
 }
 
 void Led::R(int red)
@@ -186,11 +185,10 @@ float Peripheral::current()
 }
 
 Motor::Motor(int channel,int motorMin,int motorMax,int motorCenter,int motorFDB, int motorRDB)
-  : channel_(channel), enable_(board::MOTOR[channel].ENABLE), enabled_(false), velocity_(0.0), 
+  : channel_(channel), armed_(false), velocity_(0.0), desiredVelocity_(0.0),
     motorMax_(motorMax), motorMin_(motorMin), motorCenter_(motorCenter), motorFDB_(motorFDB), motorRDB_(motorRDB)
 {
-  // Initialize with ESC softswitch off
-  pinMode(enable_, OUTPUT);
+  // Initialize with esc disconnected
   disable();
 
   // Attach Servo object to signal pin
@@ -207,18 +205,17 @@ Motor::Motor(int channel,int motorMin,int motorMax,int motorCenter,int motorFDB,
 Motor::~Motor()
 {
   disable();
-  pinMode(enable_, INPUT);
-  servo_.detach();
 }
 
 void Motor::velocity(float velocity)
 {
-	if (!enabled()) //accidently arming boat on start
-		{
-			servo_.writeMicroseconds(motorCenter_);
-			return;
-		}
-	
+	/*
+  if (!is_armed()) //accidently arming boat on start
+	{
+		servo_.writeMicroseconds(motorCenter_);
+		return;
+	}
+	*/
   if (velocity > 1.0) {
     velocity = 1.0;
   }
@@ -246,34 +243,30 @@ void Motor::velocity(float velocity)
 	// printf("command is %d \n",command);
 }
 
-// Deals with ESC softswitch exclusively
-void Motor::enable(bool enabled)
+bool Motor::set(const char* param, const char* value)
 {
-  enabled_ = enabled;
-  digitalWrite(enable_, !enabled_);
-
-  if (!enabled_)
-  {
-    velocity(0.0);
-  }
+  this->set(param, atof(value));
 }
 
-bool Motor::set(const char *param, const char *value)
+bool Motor::set(const char* param, float value)
 {
   // Set motor velocity.
   if (!strncmp("v", param, 2))
   {
-    float v = atof(value);
+    // If motor is not armed, ignore velocity commands
+    if (!is_armed()){
+      return false;
+    }
 
     // Cap velocity command to between -1.0 and 1.0
-    if (v > 1.0) {
-      v = 1.0;
+    if (value > 1.0) {
+      value = 1.0;
     }
-    else if (v < -1.0) {
-      v = -1.0;
+    else if (value < -1.0) {
+      value = -1.0;
     }
 
-    desiredVelocity_ = v;
+    desiredVelocity_ = value;
 
     return true;
   }
@@ -282,10 +275,15 @@ bool Motor::set(const char *param, const char *value)
   {
     return false;
   }
+  
 }
 
 void Motor::loop()
 {
+  // Maybe we should not call velocity() here unless armed?
+  if (!is_armed()){
+    return;
+  }
   // At the desired velocity - Do nothing
   if (abs(desiredVelocity_ - velocity_) < VELOCITY_THRESHOLD){
     velocity(desiredVelocity_);
@@ -378,19 +376,19 @@ ExternalSensor::ExternalSensor(int id, int port) : Sensor(id), port_(port)
 AnalogSensor::AnalogSensor(int id, int port)
   : ExternalSensor(id, port), scale_(1.0f), offset_(0.0f) {}
 
-bool AnalogSensor::set(const char* param, const char* value)
+bool AnalogSensor::set(const char* param, float value)
 {
   // Set analog scale.
   if (!strncmp("scale", param, 6))
   {
-    float s = atof(value);
+    float s = value;
     scale(s);
     return true;
   }
   // Set analog offset.
   else if (!strncmp("offset", param, 7))
   {
-    float o = atof(value);
+    float o = value;
     offset(o);
     return true;
   }
@@ -515,12 +513,9 @@ void SerialSensor::onSerial(){
       char output_str[DEFAULT_BUFFER_SIZE + 3];
       snprintf(output_str, DEFAULT_BUFFER_SIZE,
                "{"
-               "\"s%u\":{"
                "\"type\":\"%s\","
                "\"data\":\"%s\""
-               "}"
                "}",
-               id_,
                this->name(),
                recv_buffer_
         );

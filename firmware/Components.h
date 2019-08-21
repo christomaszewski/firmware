@@ -92,7 +92,7 @@ namespace platypus
   public:
     EBoard();
     virtual ~EBoard();
-    virtual bool set(const char *param, const char* value);
+    virtual bool set(const char* param, const char* value);
     virtual void loop();
     void disarm();
     void arm();
@@ -111,42 +111,6 @@ namespace platypus
   };
 
   // ESCs //
-  class VaporPro : public Motor 
-  {
-  public:
-    VaporPro(int channel) : Motor(channel) {}
-    void arm();
-  };
-
-  class HobbyKingBoat : public Motor 
-  {
-  public:
-    HobbyKingBoat(int channel) : Motor(channel) {}
-    void arm();
-  };
-  
-  class Seaking : public Motor 
-  {
-  public:
-    Seaking(int channel) : Motor(channel) {}
-    void arm();
-  };
-
-  class Swordfish : public Motor 
-  {
-  public:
-    Swordfish(int channel) : Motor(channel) {}
-    void arm();
-  };
-
-  class Dynamite : public Motor 
-  {
-  public:
-    // Motor Deadband range is *approx* 1425 to 1530
-    Dynamite(int channel) : Motor(channel, 1000, 2000, 1500, 30, -75) {}
-    void arm();
-  };
-    
   class AfroESC : public Motor
   {
   public:
@@ -154,6 +118,7 @@ namespace platypus
     // Motor deadband is 1475 to 1525
     AfroESC(int channel) : Motor(channel, 1100, 1900, 1500, 25, -25) {}
     void arm();
+    void disarm();
   };
 
   // Internal Sensors //

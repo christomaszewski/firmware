@@ -23,8 +23,10 @@ namespace platypus
   class Configurable
   {
   public:
-    virtual bool set(const char *param, const char *value);
+    virtual bool set(const char* param, const char* value);
+    virtual bool set(const char* param, float value);
   };
+  
   class Led
   {
   public:
@@ -75,26 +77,27 @@ namespace platypus
     virtual ~Motor();
 
     virtual void arm() = 0;
-    virtual bool set(const char *param, const char *value);
-    virtual void loop();
+    virtual void disarm() = 0;
+    bool is_armed(){ return armed_; };
+
+    bool set(const char* param, const char* value);
+    bool set(const char* param, float value);
+    void loop();
 
     void velocity(float velocity);
     float velocity(){ return velocity_; };
 
-    // Enable ESCs (softswitch)
-    void enable(bool enabled);
-    bool enabled(){ return enabled_; };
+    void enable(){ servo_.attach(board::MOTOR[channel_].SERVO);};
+    void disable(){ servo_.detach();};
 
-    void enable(){ enable(true); servo_.attach(board::MOTOR[channel_].SERVO);};
-    void disable(){ enable(false); servo_.detach();};
+  protected:
+    bool armed_;
+    float velocity_;
+    float desiredVelocity_;
 
   private:
     Servo servo_;
     const int channel_;
-    const int enable_;
-    bool enabled_;
-    float velocity_;
-    float desiredVelocity_;
 
     int motorMax_; 
     int motorMin_; 
@@ -113,7 +116,7 @@ namespace platypus
     virtual ~Sensor();
 
     virtual bool set(const char* param, const char* value);
-    virtual char *name() = 0;
+    virtual char* name() = 0;
     //virtual void onSerial();
     virtual void loop();
 
@@ -142,7 +145,7 @@ namespace platypus
   public:
     AnalogSensor(int id, int port);
 
-    bool set(const char* param, const char* value);
+    bool set(const char* param, float value);
     virtual char *name() = 0;
 
     void scale(float scale);
