@@ -250,55 +250,78 @@ IMU::IMU(int id, int interval)
     available_ = true;
   }
 
-  bno_.setAxisRemap(Adafruit_BNO055::REMAP_CONFIG_P6);
-  bno_.setAxisSign(Adafruit_BNO055::REMAP_SIGN_P6);
+  //bno_.setAxisRemap(Adafruit_BNO055::REMAP_CONFIG_P7);
+  //bno_.setAxisSign(Adafruit_BNO055::REMAP_SIGN_P7);
 
-  bno_.setExtCrystalUse(true);
-
-  delay(500);
+  delay(1000);
 
   bno_.getCalibration(&sysCalib_, &gyroCalib_, &accelCalib_, &magCalib_);
 
+  //adafruit_bno055_offsets_t calib;
   /* Need option to recalibrate - Current Values for Portugal */
-  adafruit_bno055_offsets_t calib;
-  calib.accel_offset_x = 65527;
-  calib.accel_offset_y = 65450;
-  calib.accel_offset_z = 65498;
-  calib.gyro_offset_x = 65534;
-  calib.gyro_offset_y = 65535;
-  calib.gyro_offset_z = 0;
-  calib.mag_offset_x = 65487;
-  calib.mag_offset_y = 65380;
-  calib.mag_offset_z = 324;
-  calib.accel_radius = 1000;
-  calib.mag_radius = 769;
+  // calib.accel_offset_x = 65527;
+  // calib.accel_offset_y = 65450;
+  // calib.accel_offset_z = 65498;
+  // calib.gyro_offset_x = 65534;
+  // calib.gyro_offset_y = 65535;
+  // calib.gyro_offset_z = 0;
+  // calib.mag_offset_x = 65487;
+  // calib.mag_offset_y = 65380;
+  // calib.mag_offset_z = 324;
+  // calib.accel_radius = 1000;
+  // calib.mag_radius = 769;
 
-  bno_.setSensorOffsets(calib);
+  // Values for Boston
+  // calib.accel_offset_x = 71;
+  // calib.accel_offset_y = -17;
+  // calib.accel_offset_z = -16;
+  // calib.gyro_offset_x = 0;
+  // calib.gyro_offset_y = 0;
+  // calib.gyro_offset_z = 0;
+  // calib.mag_offset_x = 178;
+  // calib.mag_offset_y = 23;
+  // calib.mag_offset_z = -238;
+  // calib.accel_radius = 1000;
+  // calib.mag_radius = 627;
+  // calib.accel_offset_x = 2;
+  // calib.accel_offset_y = -17;
+  // calib.accel_offset_z = -16;
+  // calib.gyro_offset_x = -1;
+  // calib.gyro_offset_y = 0;
+  // calib.gyro_offset_z = 1;
+  // calib.mag_offset_x = 152;
+  // calib.mag_offset_y = 34;
+  // calib.mag_offset_z = -213;
+  // calib.accel_radius = 1000;
+  // calib.mag_radius = 471;
+
+  // bno_.setSensorOffsets(calib);
   
-  
+  // delay(1000);
 
   // Wait until calibration values are within limits
   //while (!bno_.isFullyCalibrated())
   // Looser requirement for faster arming. Should pause in server instead
-  while (sysCalib_ < 3 || magCalib_ < 3)
-  {
-    delay(100);
-    //Serial.println(F("Warning: Waiting for IMU to calibrate, please move Boat around"));
-    //Serial.println(sysCalib_);
-    //Serial.println(magCalib_);
-    //Serial.println(accelCalib_);
-    //Serial.println(gyroCalib_);
-    bno_.getCalibration(&sysCalib_, &gyroCalib_, &accelCalib_, &magCalib_);
-  }
-
+  // while (sysCalib_ < 2 || magCalib_ < 2)
+  // {
+  //   delay(100);
+  //   // Serial.println(F("Warning: Waiting for IMU to calibrate, please move Boat around"));
+  //   // Serial.println(sysCalib_);
+  //   // Serial.println(magCalib_);
+  //   // Serial.println(accelCalib_);
+  //   // Serial.println(gyroCalib_);
+  //   bno_.getCalibration(&sysCalib_, &gyroCalib_, &accelCalib_, &magCalib_);
+  // }
 
   //Todo: Put in option to recalibrate
-  //adafruit_bno055_offsets_t newCalib;
+  // adafruit_bno055_offsets_t newCalib;
 
-  //bno_.getSensorOffsets(newCalib);
-  //displaySensorOffsets(newCalib);
-  //delay(5000);
+  // bno_.getSensorOffsets(newCalib);
+  // displaySensorOffsets(newCalib);
+  // delay(5000);
   
+  bno_.setExtCrystalUse(true);
+
 }
 
 char* IMU::name()
