@@ -331,8 +331,8 @@ void Sensor::onLoop_(void *data)
 
 ExternalSensor::ExternalSensor(int id, int port) : Sensor(id), port_(port)
 {
-  //Unknown if following code is necessary...
-
+  //Unknown if following code is necessary but gps wont receive commands if present...
+  /*
   // Disable RSxxx receiver
   pinMode(board::SENSOR_PORT[port].RX_DISABLE, OUTPUT);
   digitalWrite(board::SENSOR_PORT[port].RX_DISABLE, HIGH);
@@ -362,11 +362,12 @@ ExternalSensor::ExternalSensor(int id, int port) : Sensor(id), port_(port)
     pinMode(board::HALF_DUPLEX23, OUTPUT);
     digitalWrite(board::HALF_DUPLEX23, LOW);
   }
+  */
 
   // Disable loopback test
   pinMode(board::LOOPBACK, OUTPUT);
   digitalWrite(board::LOOPBACK, LOW);
-
+  
   // Disable 12V output
   pinMode(board::SENSOR_PORT[port].PWR_ENABLE, OUTPUT);
   digitalWrite(board::SENSOR_PORT[port].PWR_ENABLE, LOW);
@@ -452,7 +453,6 @@ SerialSensor::SerialSensor(int id, int port, int baud, int type, int dataLength)
   : ExternalSensor(id, port), recv_index_(0), baudRate_(baud), serialType_(type)
 {
   minDataStringLength_ = dataLength;
-
   if (type == TTL)
   {
     pinMode(board::SENSOR_PORT[port].TX_ENABLE, OUTPUT);
@@ -482,7 +482,7 @@ SerialSensor::SerialSensor(int id, int port, int baud, int type, int dataLength)
     pinMode(board::SENSOR_PORT[port].RS485_232, OUTPUT);
     digitalWrite(board::SENSOR_PORT[port].RS485_232, HIGH);
   }
-
+  
   if (SERIAL_PORTS[port] != nullptr)
   {
     // Register serial event handler

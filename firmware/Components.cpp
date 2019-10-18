@@ -64,6 +64,13 @@ bool EBoard::set(const char* param, const char* value)
       state_ = SerialState::CONNECTED;
       Serial.println("{\"type\":\"state\",\"data\":\"connected\"}");
     }
+    else if (strcmp("init", value) == 0)
+    {
+      for (int i=0; i<board::NUM_SENSOR_PORTS; i++){
+        sensors[i]->set("cmd", "init");
+      }
+
+    }
   }
   else if (strcmp("info",param) == 0)
   {
@@ -239,17 +246,27 @@ void BatterySensor::loop()
 }
 
 IMU::IMU(int id, int interval)
-  : Sensor(id), interval_(interval), available_(false), bno_(55, 0x29)
+  : Sensor(id), interval_(interval), available_(false), bno_(-1, 0x29)
 {
   lastMeasurementTime_ = 0;
 
-  if (!bno_.begin()){
-    Serial.println('{\"type\":\"error\",\"data\":\"Failed to initialize imu\"}');
-    return;
-  } else {
-    available_ = true;
+  int count = 0;
+
+  while (!available_ && count < 3){
+    Serial.println("{\"type\":\"info\",\"data\":\"Attempting to initialize imu\"}");
+    if (!bno_.begin()){
+      Serial.println("{\"type\":\"error\",\"data\":\"Failed to initialize imu\"}");
+      //return;
+    } else {
+      available_ = true;
+    }
+    delay(1000);
+    count++;
   }
 
+  if (!available_){
+    return;
+  }
   //bno_.setAxisRemap(Adafruit_BNO055::REMAP_CONFIG_P7);
   //bno_.setAxisSign(Adafruit_BNO055::REMAP_SIGN_P7);
 
@@ -257,7 +274,7 @@ IMU::IMU(int id, int interval)
 
   bno_.getCalibration(&sysCalib_, &gyroCalib_, &accelCalib_, &magCalib_);
 
-  //adafruit_bno055_offsets_t calib;
+  adafruit_bno055_offsets_t calib;
   /* Need option to recalibrate - Current Values for Portugal */
   // calib.accel_offset_x = 65527;
   // calib.accel_offset_y = 65450;
@@ -271,49 +288,60 @@ IMU::IMU(int id, int interval)
   // calib.accel_radius = 1000;
   // calib.mag_radius = 769;
 
-  // Values for Boston
-  // calib.accel_offset_x = 71;
-  // calib.accel_offset_y = -17;
-  // calib.accel_offset_z = -16;
-  // calib.gyro_offset_x = 0;
-  // calib.gyro_offset_y = 0;
-  // calib.gyro_offset_z = 0;
-  // calib.mag_offset_x = 178;
-  // calib.mag_offset_y = 23;
-  // calib.mag_offset_z = -238;
-  // calib.accel_radius = 1000;
-  // calib.mag_radius = 627;
-  // calib.accel_offset_x = 2;
-  // calib.accel_offset_y = -17;
-  // calib.accel_offset_z = -16;
-  // calib.gyro_offset_x = -1;
-  // calib.gyro_offset_y = 0;
-  // calib.gyro_offset_z = 1;
-  // calib.mag_offset_x = 152;
-  // calib.mag_offset_y = 34;
-  // calib.mag_offset_z = -213;
-  // calib.accel_radius = 1000;
-  // calib.mag_radius = 471;
+  // Boston Apartment
+  // Accelerometer: -2 -35 -36 
+  // Gyro: -1 0 0 
+  // Mag: 0 170 -127 
+  // Accel Radius: 1000
+  // Mag Radius: 822
+  calib.accel_offset_x = -2;
+  calib.accel_offset_y = -35;
+  calib.accel_offset_z = -36;
+  calib.gyro_offset_x = -1;
+  calib.gyro_offset_y = 0;
+  calib.gyro_offset_z = 0;
+  calib.mag_offset_x = 0;
+  calib.mag_offset_y = 170;
+  calib.mag_offset_z = -127;
+  calib.accel_radius = 1000;
+  calib.mag_radius = 822;
 
-  // bno_.setSensorOffsets(calib);
-  
-  // delay(1000);
+  // Boston Pond
+  // Accelerometer: 2 46 -15 
+  // Gyro: -2 1 0 
+  // Mag: -192 -177 -1335 
+  // Accel Radius: 1000
+  // Mag Radius: 723
+  // calib.accel_offset_x = 2;
+  // calib.accel_offset_y = 46;
+  // calib.accel_offset_z = -15;
+  // calib.gyro_offset_x = -2;
+  // calib.gyro_offset_y = 1;
+  // calib.gyro_offset_z = 0;
+  // calib.mag_offset_x = -192;
+  // calib.mag_offset_y = -177;
+  // calib.mag_offset_z = -1335;
+  // calib.accel_radius = 1000;
+  // calib.mag_radius = 723;
+
+  bno_.setSensorOffsets(calib);
+
+  delay(1000);
 
   // Wait until calibration values are within limits
-  //while (!bno_.isFullyCalibrated())
+  // while (!bno_.isFullyCalibrated())
   // Looser requirement for faster arming. Should pause in server instead
   // while (sysCalib_ < 2 || magCalib_ < 2)
   // {
   //   delay(100);
-  //   // Serial.println(F("Warning: Waiting for IMU to calibrate, please move Boat around"));
-  //   // Serial.println(sysCalib_);
-  //   // Serial.println(magCalib_);
-  //   // Serial.println(accelCalib_);
-  //   // Serial.println(gyroCalib_);
+  //   Serial.println(F("Warning: Waiting for IMU to calibrate, please move Boat around"));
+  //   Serial.println(sysCalib_);
+  //   Serial.println(magCalib_);
+  //   Serial.println(accelCalib_);
+  //   Serial.println(gyroCalib_);
   //   bno_.getCalibration(&sysCalib_, &gyroCalib_, &accelCalib_, &magCalib_);
   // }
 
-  //Todo: Put in option to recalibrate
   // adafruit_bno055_offsets_t newCalib;
 
   // bno_.getSensorOffsets(newCalib);
@@ -359,11 +387,295 @@ void IMU::loop()
   }
 }
 
-AdafruitGPS::AdafruitGPS(int id, int port)
-  : ExternalSensor(id, port), SerialSensor(id, port, 9600, TTL, 0)
+ExternalIMU::ExternalIMU(int id, int port, int interval) 
+  : ExternalSensor(id, port), PoweredSensor(id, port, false), interval_(interval), 
+    available_(false), initialized_(false), bno_(-1, 0x29)
 {
-  // Note: This currently does not work after SerialSensor Init!
+  lastMeasurementTime_ = 0;
+  powerOff();
 
+  //initialize();
+}
+
+void ExternalIMU::restoreOffsets()
+{
+  adafruit_bno055_offsets_t calib;
+  // Boston Apartment
+  // Accelerometer: -20 14 -25 
+  // Gyro: 0 -1 0 
+  // Mag: 134 206 357 
+  // Accel Radius: 1000
+  // Mag Radius: 495
+  calib.accel_offset_x = -20;
+  calib.accel_offset_y = 14;
+  calib.accel_offset_z = -25;
+  calib.gyro_offset_x = 0;
+  calib.gyro_offset_y = -1;
+  calib.gyro_offset_z = 0;
+  calib.mag_offset_x = 134;
+  calib.mag_offset_y = 206;
+  calib.mag_offset_z = 357;
+  calib.accel_radius = 1000;
+  calib.mag_radius = 495;
+
+  Serial.println("{\"type\":\"info\",\"data\":\"Restoring imu calibration values\"}");
+  bno_.setSensorOffsets(calib);
+
+  delay(1000);
+}
+
+bool ExternalIMU::initialize()
+{
+  int initRetryCount = 0;
+
+  // If imu is already initialized cycle power and potentially redefine bno_
+  if (initialized_){
+    initialized_ = false;
+    available_ = false;
+    powerOff();
+    delay(5000);
+    bno_ = Adafruit_BNO055(-1, 0x29);
+  }
+
+  Serial.println("{\"type\":\"info\",\"data\":\"Powering on imu\"}");
+  powerOn();
+  delay(3000);
+
+  while (!available_ && initRetryCount < 3){
+    Serial.println("{\"type\":\"info\",\"data\":\"Attempting to initialize imu\"}");
+    if (!bno_.begin(Adafruit_BNO055::OPERATION_MODE_NDOF)){
+      Serial.println("{\"type\":\"error\",\"data\":\"Failed to initialize imu\"}");
+      //return;
+    } else {
+      Serial.println("{\"type\":\"info\",\"data\":\"Connected to imu\"}");
+      available_ = true;
+    }
+    delay(1000);
+    initRetryCount++;
+  }
+
+  if (!available_){
+    return false;
+  }
+
+  this->restoreOffsets();
+
+  bno_.setExtCrystalUse(true);
+
+  delay(1000);
+
+  initialized_ = true;
+  return true;
+}
+
+void ExternalIMU::calibrate()
+{
+  Serial.println("{\"type\":\"info\",\"data\":\"Attempting to calibrate imu\"}");
+
+  bno_.getCalibration(&sysCalib_, &gyroCalib_, &accelCalib_, &magCalib_);
+
+  Serial.println("{\"type\":\"info\",\"data\":\"Waiting until fully calibrated, move sensor around\"}");
+
+  // Wait until calibration values are within limits
+  //while (!bno_.isFullyCalibrated())
+  // Looser requirement for faster arming. Should pause in server instead
+  while (sysCalib_ < 3 || magCalib_ < 3)
+  {
+    delay(200);
+    Serial.print("{\"type\":\"info\",\"data\":\"");
+    Serial.print(sysCalib_);
+    Serial.print(",");
+    Serial.print(magCalib_);
+    Serial.print(",");
+    Serial.print(gyroCalib_);
+    Serial.print(",");
+    Serial.print(accelCalib_);
+    Serial.println("\"}");
+
+    bno_.getCalibration(&sysCalib_, &gyroCalib_, &accelCalib_, &magCalib_);
+  }
+
+  // adafruit_bno055_offsets_t newCalib;
+
+  // bno_.getSensorOffsets(newCalib);
+  // displaySensorOffsets(newCalib);
+  // delay(5000);
+
+}
+
+bool ExternalIMU::set(const char* param, const char* value)
+{
+  if (strcmp(param, "cmd") == 0){
+    if (strcmp(value, "init") == 0){
+      return this->initialize();
+    } else if (strcmp(value, "cal") == 0) {
+      this->calibrate();
+      return true;
+    } else {
+      return false;
+    }
+  }
+  return false;
+}
+
+void ExternalIMU::loop()
+{
+  if (isAvailable() && millis() - lastMeasurementTime_ > interval_)
+  {
+    bno_.getCalibration(&sysCalib_, &gyroCalib_, &accelCalib_, &magCalib_);
+
+    sensors_event_t event;
+    bno_.getEvent(&event);
+    lastMeasurementTime_ = millis();
+
+    // Todo: return other values from imu as well
+    char output_str[DEFAULT_BUFFER_SIZE + 3];
+    snprintf(output_str, DEFAULT_BUFFER_SIZE,
+             "{"
+             "\"type\":\"%s\","
+             "\"data\":\"%.4f,%.4f,%.4f,%d,%d,%d,%d\""
+             "}",
+             this->name(),
+             event.orientation.x,
+             event.orientation.y,
+             event.orientation.z,
+             sysCalib_,
+             magCalib_,
+             gyroCalib_,
+             accelCalib_
+            );
+    send(output_str); 
+  }
+}
+
+ExternalSFIMU::ExternalSFIMU(int id, int port, int interval) 
+  : ExternalSensor(id, port), PoweredSensor(id, port, false), 
+    interval_(interval), available_(false), initialized_(false)
+{
+  lastMeasurementTime_ = 0;
+  powerOff();
+  delay(1000);
+  this->initialize();
+}
+
+bool ExternalSFIMU::initialize()
+{
+  int initRetryCount = 0;
+
+  // If imu is already initialized cycle power and potentially redefine bno_
+  if (initialized_){
+    initialized_ = false;
+    available_ = false;
+    powerOff();
+    delay(5000);
+    bno_ = BNO080();
+  }
+
+  Serial.println("{\"type\":\"info\",\"data\":\"Powering on imu\"}");
+  powerOn();
+  delay(3000);
+
+  Wire.begin();
+
+  while (!available_ && initRetryCount < 3){
+    Serial.println("{\"type\":\"info\",\"data\":\"Attempting to initialize imu\"}");
+    if (!bno_.begin()){
+      Serial.println("{\"type\":\"error\",\"data\":\"Failed to initialize imu\"}");
+      //return;
+    } else {
+      Serial.println("{\"type\":\"info\",\"data\":\"Connected to imu\"}");
+      available_ = true;
+    }
+    delay(1000);
+    initRetryCount++;
+  }
+
+  if (!available_){
+    return false;
+  }
+
+  Wire.setClock(400000);
+  bno_.calibrateAll();
+  bno_.enableRotationVector(this->getInterval());
+  delay(100);
+
+  initialized_ = true;
+  return true;
+}
+
+void ExternalSFIMU::loop()
+{
+  // Removed check against lastMeasurementTime because it may be causing extra lag
+  // between reading being taken and then being sent out over serial
+  //if (isAvailable() && millis() - lastMeasurementTime_ > interval_ && bno_.dataAvailable())
+  if (isAvailable() && bno_.dataAvailable())
+  {
+    float qw = bno_.getQuatReal();
+    float qx = bno_.getQuatI();
+    float qy = bno_.getQuatJ();
+    float qz = bno_.getQuatK();
+    unsigned int accuracy = (unsigned int) (100.0 * bno_.getQuatRadianAccuracy());
+
+    float x = atan2(2.0*(qx*qy+qz*qw),(qx*qx-qy*qy-qz*qz+qw*qw));
+    //float x = atan2(2.0*(qx*qy+qz*qw),(sqx-sqy-sqz+sqw));
+    //float y = asin(-2.0*(qx*qz-qy*qw)/(sqx+sqy+sqz+sqw));
+    //float z = atan2(2.0*(qy*qz+qx*qw),(-sqx-sqy+sqz+sqw));
+
+    float xDeg = (x/PI) * 180.0;
+    float xOffset = 180 - xDeg;
+
+    if (xOffset >= 360){
+      xOffset -= 360;
+    }else if (xOffset < 0){
+      xOffset += 360;
+    }
+
+    lastMeasurementTime_ = millis();
+
+    // Todo: Reduce # of calibration values being sent here
+    char output_str[DEFAULT_BUFFER_SIZE + 3];
+    snprintf(output_str, DEFAULT_BUFFER_SIZE,
+             "{"
+             "\"type\":\"%s\","
+             "\"data\":\"%.4f,%.4f,%.4f,%d,%d,%d,%d\""
+             "}",
+             this->name(),
+             xOffset,
+             xOffset,
+             xOffset,
+             accuracy,
+             accuracy,
+             accuracy,
+             accuracy
+            );
+    send(output_str); 
+  }
+}
+
+bool ExternalSFIMU::set(const char* param, const char* value)
+{
+  if (strcmp(param, "cmd") == 0){
+    if (strcmp(value, "init") == 0){
+      return this->initialize();
+    } else if (strcmp(value, "cal") == 0) {
+      //this->calibrate();
+      return true;
+    } else {
+      return false;
+    }
+  }
+  return false;
+}
+
+AdafruitGPS::AdafruitGPS(int id, int port)
+  : ExternalSensor(id, port), SerialSensor(id, port, 9600, RS232, 0)
+{
+  // Seems to work now with parts of ExternalSensor constructor 
+  // commented out and RS232 type selected (basically disabling 
+  // parts of SerialSensor constructor)
+  // Note: This currently does not work after SerialSensor Init!
+  // Must comment out At least externalSensor constructor
+  // Possibly Serial sensor constructor as well (except last bit)
   SERIAL_PORTS[port]->setTimeout(250);
   // Set output to RMC only
   SERIAL_PORTS[port]->println(PMTK_SET_NMEA_OUTPUT_RMCONLY);
@@ -373,6 +685,22 @@ AdafruitGPS::AdafruitGPS(int id, int port)
   // Set fix rate to 5Hz
   SERIAL_PORTS[port]->println(PMTK_SET_NMEA_UPDATE_5HZ);
   SERIAL_PORTS[port]->flush();
+
+  // Enable DGPS for WAAS
+  SERIAL_PORTS[port]->println(PMTK_ENABLE_SBAS);
+  SERIAL_PORTS[port]->println(PMTK_ENABLE_WAAS);
+  SERIAL_PORTS[port]->flush();
+
+  // Check status of DGPS/WAAS settings
+  // SERIAL_PORTS[port]->println(PTMK_CHECK_DGPS_ENABLED);
+  // SERIAL_PORTS[port]->flush();  
+  // SERIAL_PORTS[port]->println(PTMK_CHECK_DGPS_MODE);
+  // SERIAL_PORTS[port]->flush();
+
+  // View Antenna status
+  // SERIAL_PORTS[port]->println(PGCMD_ANTENNA);
+  // SERIAL_PORTS[port]->println(PGCMD_NOANTENNA);
+  // SERIAL_PORTS[port]->flush();
 }
 
 ServoSensor::ServoSensor(int id, int port) 

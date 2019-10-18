@@ -220,11 +220,11 @@ void setup()
   platypus::sensors[0] = new platypus::EmptySensor(0, 0);
   platypus::sensors[1] = new platypus::EmptySensor(1, 1);
   platypus::sensors[2] = new platypus::AdafruitGPS(2, 2);
-  platypus::sensors[3] = new platypus::EmptySensor(3, 3); // No serial on sensor 3!!!
+  platypus::sensors[3] = new platypus::ExternalSFIMU(3, 3); // No serial on sensor 3!!!
 
   // Initialize Internal sensors
   platypus::sensors[4] = new platypus::BatterySensor(4);
-  platypus::sensors[5] = new platypus::IMU(5);
+  //platypus::sensors[5] = new platypus::ExternalIMU(5, 3);
 
   // Initialize motors
   platypus::motors[0] = new platypus::AfroESC(0);

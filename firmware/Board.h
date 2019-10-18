@@ -75,7 +75,7 @@ namespace board
   };
 
   // 4 External + 2 Internal
-  const size_t NUM_SENSORS = 6;
+  const size_t NUM_SENSORS = 5;
 
   const int V_BATT = A3;
   const int CHG_CTRL = 51;

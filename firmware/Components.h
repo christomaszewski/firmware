@@ -4,6 +4,7 @@
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BNO055.h>
+#include <SparkFun_BNO080_Arduino_Library.h>
 
 #include "Platypus.h"
 
@@ -11,6 +12,9 @@
 #define DEFAULT_ATLAS_INTERVAL 3000
 #define DEFAULT_ES2_INTERVAL 1500
 #define DEFAULT_IMU_INTERVAL 200
+#define FAST_IMU_INTERVAL 50
+
+#define IMU_INIT_RETRY_LIMIT 3
 
 // Adafruit GPS Setting Strings
 // different commands to set the update rate from once a second (1 Hz) to 10 times a second (10Hz)
@@ -28,9 +32,9 @@
 #define PMTK_API_SET_FIX_CTL_5HZ  "$PMTK300,200,0,0,0,0*2F"
 // Can't fix position faster than 5 times a second!
 
-
-#define PMTK_SET_BAUD_57600 "$PMTK251,57600*2C"
-#define PMTK_SET_BAUD_9600 "$PMTK251,9600*17"
+#define PMTK_SET_BAUD_115200 "$PMTK251,115200*1F"  ///< 115200 bps
+#define PMTK_SET_BAUD_57600  "$PMTK251,57600*2C"   ///<  57600 bps
+#define PMTK_SET_BAUD_9600   "$PMTK251,9600*17"    ///<   9600 bps
 
 // turn on only the second sentence (GPRMC)
 #define PMTK_SET_NMEA_OUTPUT_RMCONLY "$PMTK314,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0*29"
@@ -41,6 +45,17 @@
 // turn off output
 #define PMTK_SET_NMEA_OUTPUT_OFF "$PMTK314,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0*28"
 
+// Enable DGPS mode for WAAS
+#define DGPS_WAAS "$PMTK301,2*2E"
+
+#define PMTK_ENABLE_SBAS "$PMTK313,1*2E"  ///< Enable search for SBAS satellite (only works with 1Hz output rate)
+#define PMTK_ENABLE_WAAS "$PMTK301,2*2E"  ///< Use WAAS for DGPS correction data
+#define PTMK_CHECK_DGPS_ENABLED "$PMTK413*34"
+#define PTMK_CHECK_DGPS_MODE "$PMTK401*37"
+
+
+#define PGCMD_ANTENNA "$PGCMD,33,1*6C"            ///< request for updates on antenna status
+#define PGCMD_NOANTENNA "$PGCMD,33,0*6D"          ///< don't show antenna status messages
 
 namespace platypus 
 {
@@ -165,6 +180,56 @@ namespace platypus
     EmptySensor(int id, int port) : ExternalSensor(id, port){};
 
     virtual char *name(){ return "empty"; };
+  };
+
+
+  class ExternalIMU : public PoweredSensor
+  {
+  public:
+    ExternalIMU(int id, int port, int interval = DEFAULT_IMU_INTERVAL);
+    
+    bool set(const char* param, const char* value);
+    virtual char *name(){ return "imu"; };
+    void loop();
+    bool initialize();
+    void calibrate();
+
+    bool isAvailable(){ return available_ && initialized_; };
+
+  private:
+    const int interval_;
+    bool available_;
+    bool initialized_;
+    int lastMeasurementTime_;
+    Adafruit_BNO055 bno_;
+
+    uint8_t sysCalib_;
+    uint8_t gyroCalib_;
+    uint8_t accelCalib_;
+    uint8_t magCalib_;
+
+    void restoreOffsets();
+  };
+
+  class ExternalSFIMU : public PoweredSensor
+  {
+  public:
+    ExternalSFIMU(int id, int port, int interval = FAST_IMU_INTERVAL);
+
+    bool set(const char* param, const char* value);
+    virtual char *name(){ return "imu"; };
+    void loop();
+    bool initialize();
+
+    bool isAvailable(){ return available_ && initialized_; };
+    int getInterval(){ return interval_; };
+
+  private:
+    const int interval_;
+    bool available_;
+    bool initialized_;
+    int lastMeasurementTime_;
+    BNO080 bno_;
   };
 
   class AdafruitGPS : public SerialSensor
